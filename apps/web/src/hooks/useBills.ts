@@ -114,6 +114,29 @@ export function useTransitionBill() {
   });
 }
 
+export type BulkApproveResult = {
+  id: string;
+  success: boolean;
+  error?: string;
+};
+
+export function useBulkApprove() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (billIds: string[]) => {
+      const { data } = await api.post<{ results: BulkApproveResult[] }>(
+        "/bills/bulk-transition",
+        { billIds, to: "approved" },
+      );
+      return data.results;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bills"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
 export function useDeleteBill() {
   const qc = useQueryClient();
   return useMutation({
