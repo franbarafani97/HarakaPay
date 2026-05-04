@@ -173,4 +173,6 @@ model Activity {
 
 # Work on Front
 
-# Check if possible to add stripe with a dev environment.
+# Check if possible to add stripe with a dev environment. Apparently there is no free tier, maybe mercadopago could do it as payment example
+
+# Add a human Liveness check before confirming a payment for security. React Faceplugin.
