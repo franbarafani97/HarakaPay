@@ -18,12 +18,12 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-5">
         <h1 className="text-2xl font-semibold">Create account</h1>
 
-        <div className="space-y-1">
-          <label htmlFor="name" className="text-sm">
+        <div className="space-y-1.5">
+          <label htmlFor="name" className="text-sm font-medium">
             Name
           </label>
           <input
@@ -33,12 +33,12 @@ export default function Signup() {
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full border rounded px-3 py-2"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
           />
         </div>
 
-        <div className="space-y-1">
-          <label htmlFor="email" className="text-sm">
+        <div className="space-y-1.5">
+          <label htmlFor="email" className="text-sm font-medium">
             Email
           </label>
           <input
@@ -48,12 +48,12 @@ export default function Signup() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full border rounded px-3 py-2"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
           />
         </div>
 
-        <div className="space-y-1">
-          <label htmlFor="password" className="text-sm">
+        <div className="space-y-1.5">
+          <label htmlFor="password" className="text-sm font-medium">
             Password
           </label>
           <input
@@ -64,13 +64,15 @@ export default function Signup() {
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full border rounded px-3 py-2"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
           />
-          <p className="text-xs text-gray-500">At least 8 characters.</p>
+          <p className="text-xs text-muted-foreground">
+            At least 8 characters.
+          </p>
         </div>
 
         {register.isError && (
-          <p className="text-sm text-red-600">
+          <p className="text-sm text-destructive">
             Could not create account. Email may already be in use.
           </p>
         )}
@@ -78,14 +80,17 @@ export default function Signup() {
         <button
           type="submit"
           disabled={register.isPending}
-          className="w-full border rounded px-3 py-2 bg-black text-white disabled:opacity-50"
+          className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
           {register.isPending ? "Creating..." : "Create account"}
         </button>
 
-        <p className="text-sm text-center">
+        <p className="text-sm text-center text-muted-foreground">
           Already have an account?{" "}
-          <Link to="/login" className="underline">
+          <Link
+            to="/login"
+            className="text-primary underline-offset-4 hover:underline"
+          >
             Sign in
           </Link>
         </p>

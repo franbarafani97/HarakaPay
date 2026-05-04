@@ -14,12 +14,12 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-5">
         <h1 className="text-2xl font-semibold">Sign in</h1>
 
-        <div className="space-y-1">
-          <label htmlFor="email" className="text-sm">
+        <div className="space-y-1.5">
+          <label htmlFor="email" className="text-sm font-medium">
             Email
           </label>
           <input
@@ -29,12 +29,12 @@ export default function Login() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full border rounded px-3 py-2"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
           />
         </div>
 
-        <div className="space-y-1">
-          <label htmlFor="password" className="text-sm">
+        <div className="space-y-1.5">
+          <label htmlFor="password" className="text-sm font-medium">
             Password
           </label>
           <input
@@ -44,25 +44,28 @@ export default function Login() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full border rounded px-3 py-2"
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
           />
         </div>
 
         {login.isError && (
-          <p className="text-sm text-red-600">Invalid email or password.</p>
+          <p className="text-sm text-destructive">Invalid email or password.</p>
         )}
 
         <button
           type="submit"
           disabled={login.isPending}
-          className="w-full border rounded px-3 py-2 bg-black text-white disabled:opacity-50"
+          className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
         >
           {login.isPending ? "Signing in..." : "Sign in"}
         </button>
 
-        <p className="text-sm text-center">
+        <p className="text-sm text-center text-muted-foreground">
           No account?{" "}
-          <Link to="/signup" className="underline">
+          <Link
+            to="/signup"
+            className="text-primary underline-offset-4 hover:underline"
+          >
             Create one
           </Link>
         </p>

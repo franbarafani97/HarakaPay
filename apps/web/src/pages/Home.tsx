@@ -11,12 +11,15 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-6">
-      <p className="text-lg">Signed in as {user?.email}</p>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-6 bg-background">
+      <p className="text-lg text-muted-foreground">
+        Signed in as{" "}
+        <span className="text-foreground font-medium">{user?.email}</span>
+      </p>
       <button
         onClick={onLogout}
         disabled={logout.isPending}
-        className="border rounded px-4 py-2 bg-black text-white disabled:opacity-50"
+        className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
       >
         {logout.isPending ? "Signing out..." : "Sign out"}
       </button>
