@@ -64,7 +64,7 @@ vendorsRouter.get("/:id", async (req, res) => {
     throw new ApiError(404, "VENDOR_NOT_FOUND", "Vendor not found");
   }
 
-  const [paidAgg, lastPaid, openBillCount] = await Promise.all([
+  const [paidAgg, lastPaid, openBillCount, lastBill] = await Promise.all([
     prisma.bill.aggregate({
       where: { vendorId: vendor.id, status: "paid" },
       _sum: { amountCents: true },
@@ -80,6 +80,11 @@ vendorsRouter.get("/:id", async (req, res) => {
         status: { notIn: ["paid", "rejected"] },
       },
     }),
+    prisma.bill.findFirst({
+      where: { vendorId: vendor.id },
+      orderBy: { createdAt: "desc" },
+      select: { amountCents: true },
+    }),
   ]);
 
   res.json({
@@ -88,6 +93,7 @@ vendorsRouter.get("/:id", async (req, res) => {
       totalSpentCents: paidAgg._sum.amountCents ?? 0,
       lastPaidAt: lastPaid?.paymentDate?.toISOString() ?? null,
       openBillCount,
+      lastBillAmountCents: lastBill?.amountCents ?? null,
     },
   });
 });

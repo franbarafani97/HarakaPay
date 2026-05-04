@@ -4,7 +4,11 @@ import type { Bill, BillStatus } from "@harakapay/shared";
 import AppHeader from "../components/AppHeader";
 import { StatusPill } from "../components/StatusPill";
 import { useMe } from "../hooks/useAuth";
-import { useBillsList, useBulkApprove } from "../hooks/useBills";
+import {
+  useBillsList,
+  useBulkApprove,
+  useTransitionBill,
+} from "../hooks/useBills";
 import { Button, buttonVariants } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Checkbox } from "../components/ui/checkbox";
@@ -17,6 +21,7 @@ import {
   TableRow,
 } from "../components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { cn } from "../lib/utils";
 
 type FilterValue = BillStatus | "all";
 
@@ -44,21 +49,74 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 
 export default function BillsInbox() {
   const [filter, setFilter] = useState<FilterValue>("all");
+  const navigate = useNavigate();
   const { data: user } = useMe();
   const isApprover = user?.role === "approver";
 
   const bills = useBillsList(filter === "all" ? {} : { status: filter });
+  const transitionBill = useTransitionBill();
+  const bulkApprove = useBulkApprove();
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [resultMessage, setResultMessage] = useState<string | null>(null);
-  const bulkApprove = useBulkApprove();
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
     setSelected(new Set());
     setResultMessage(null);
+    setActiveIndex(0);
   }, [filter]);
 
   const list = bills.data?.bills ?? [];
+
+  useEffect(() => {
+    if (activeIndex >= list.length) {
+      setActiveIndex(Math.max(0, list.length - 1));
+    }
+  }, [list.length, activeIndex]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target && target.isContentEditable)
+      ) {
+        return;
+      }
+      if (list.length === 0) return;
+
+      if (e.key === "j" || e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveIndex((i) => Math.min(i + 1, list.length - 1));
+      } else if (e.key === "k" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveIndex((i) => Math.max(i - 1, 0));
+      } else if (e.key === "Enter") {
+        const bill = list[activeIndex];
+        if (bill) {
+          e.preventDefault();
+          navigate(`/bills/${bill.id}`);
+        }
+      } else if (e.key === "e" && isApprover) {
+        const bill = list[activeIndex];
+        if (bill?.status === "pending_approval") {
+          e.preventDefault();
+          transitionBill.mutate({ id: bill.id, to: "approved" } as never);
+        }
+      }
+    }
+
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [list, activeIndex, isApprover, navigate, transitionBill]);
+
+  useEffect(() => {
+    const el = document.querySelector('[data-active-row="true"]');
+    if (el) el.scrollIntoView({ block: "nearest" });
+  }, [activeIndex]);
+
   const selectableIds = list
     .filter((b) => b.status === "pending_approval")
     .map((b) => b.id);
@@ -174,14 +232,18 @@ export default function BillsInbox() {
         ) : list.length === 0 ? (
           <EmptyState filter={filter} />
         ) : (
-          <BillsTable
-            bills={list}
-            selected={selected}
-            onToggleRow={toggleRow}
-            onToggleAll={toggleAll}
-            allSelected={allSelected}
-            showSelectionColumn={showSelectionColumn}
-          />
+          <>
+            <BillsTable
+              bills={list}
+              activeIndex={activeIndex}
+              selected={selected}
+              onToggleRow={toggleRow}
+              onToggleAll={toggleAll}
+              allSelected={allSelected}
+              showSelectionColumn={showSelectionColumn}
+            />
+            <KeyboardHint isApprover={isApprover} />
+          </>
         )}
       </main>
     </div>
@@ -190,6 +252,7 @@ export default function BillsInbox() {
 
 function BillsTable({
   bills,
+  activeIndex,
   selected,
   onToggleRow,
   onToggleAll,
@@ -197,6 +260,7 @@ function BillsTable({
   showSelectionColumn,
 }: {
   bills: Bill[];
+  activeIndex: number;
   selected: Set<string>;
   onToggleRow: (id: string) => void;
   onToggleAll: () => void;
@@ -226,13 +290,18 @@ function BillsTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {bills.map((bill) => {
+          {bills.map((bill, i) => {
             const isPending = bill.status === "pending_approval";
+            const isActive = i === activeIndex;
             return (
               <TableRow
                 key={bill.id}
                 onClick={() => navigate(`/bills/${bill.id}`)}
-                className="cursor-pointer"
+                data-active-row={isActive ? "true" : undefined}
+                className={cn(
+                  "cursor-pointer transition-colors",
+                  isActive && "bg-muted/50",
+                )}
               >
                 {showSelectionColumn && (
                   <TableCell
@@ -269,6 +338,34 @@ function BillsTable({
         </TableBody>
       </Table>
     </Card>
+  );
+}
+
+function KeyboardHint({ isApprover }: { isApprover: boolean }) {
+  return (
+    <p className="mt-3 text-xs text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
+      <span>
+        <Kbd>j</Kbd>
+        <span className="mx-1">/</span>
+        <Kbd>k</Kbd> navigate
+      </span>
+      <span>
+        <Kbd>↵</Kbd> open
+      </span>
+      {isApprover && (
+        <span>
+          <Kbd>e</Kbd> approve pending
+        </span>
+      )}
+    </p>
+  );
+}
+
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-foreground">
+      {children}
+    </kbd>
   );
 }
 

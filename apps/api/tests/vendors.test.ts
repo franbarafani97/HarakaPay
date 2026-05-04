@@ -113,7 +113,39 @@ describe("GET /api/v1/vendors/:id", () => {
       totalSpentCents: 0,
       lastPaidAt: null,
       openBillCount: 0,
+      lastBillAmountCents: null,
     });
+  });
+
+  it("returns lastBillAmountCents from the most recent bill", async () => {
+    const created = await prisma.vendor.create({
+      data: { name: "RecurringCo", paymentMethod: "ach" },
+    });
+    await prisma.bill.create({
+      data: {
+        vendorId: created.id,
+        invoiceNumber: "OLD",
+        amountCents: 5_000,
+        issueDate: new Date("2026-01-01"),
+        dueDate: new Date("2026-02-01"),
+        status: "draft",
+        createdAt: new Date("2026-01-01"),
+      },
+    });
+    await prisma.bill.create({
+      data: {
+        vendorId: created.id,
+        invoiceNumber: "NEW",
+        amountCents: 22_500,
+        issueDate: new Date("2026-04-01"),
+        dueDate: new Date("2026-05-01"),
+        status: "draft",
+        createdAt: new Date("2026-04-01"),
+      },
+    });
+
+    const res = await agent.get(`/api/v1/vendors/${created.id}`);
+    expect(res.body.stats.lastBillAmountCents).toBe(22_500);
   });
 
   it("returns 404 for unknown id", async () => {

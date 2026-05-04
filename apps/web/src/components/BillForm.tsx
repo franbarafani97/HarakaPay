@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { useCreateVendor, useVendors } from "../hooks/useVendors";
+import { useCreateVendor, useVendor, useVendors } from "../hooks/useVendors";
 import { Button, buttonVariants } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
@@ -97,6 +97,22 @@ export default function BillForm({
   const [lineItems, setLineItems] = useState<LineItemRow[]>(initial.lineItems);
   const [file, setFile] = useState<File | null>(null);
   const [showVendorForm, setShowVendorForm] = useState(false);
+
+  const vendorDetail = useVendor(form.vendorId || undefined);
+
+  useEffect(() => {
+    const data = vendorDetail.data;
+    if (!data) return;
+    setForm((f) => ({
+      ...f,
+      glCode: f.glCode || (data.vendor.defaultGlCode ?? ""),
+      amountDollars:
+        f.amountDollars ||
+        (data.stats.lastBillAmountCents != null
+          ? (data.stats.lastBillAmountCents / 100).toFixed(2)
+          : ""),
+    }));
+  }, [vendorDetail.data]);
   const [newVendor, setNewVendor] = useState<{
     name: string;
     email: string;

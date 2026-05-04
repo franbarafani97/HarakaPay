@@ -2,6 +2,28 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CreateVendor, Vendor } from "@harakapay/shared";
 import { api } from "../lib/api";
 
+export type VendorDetail = {
+  vendor: Vendor;
+  stats: {
+    totalSpentCents: number;
+    lastPaidAt: string | null;
+    openBillCount: number;
+    lastBillAmountCents: number | null;
+  };
+};
+
+export function useVendor(id: string | undefined) {
+  return useQuery({
+    queryKey: ["vendors", "detail", id],
+    queryFn: async () => {
+      const { data } = await api.get<VendorDetail>(`/vendors/${id}`);
+      return data;
+    },
+    enabled: !!id,
+    staleTime: 60_000,
+  });
+}
+
 export function useVendors() {
   return useQuery({
     queryKey: ["vendors"],
