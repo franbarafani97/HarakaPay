@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import { authRouter } from "./routes/auth";
+import { vendorsRouter } from "./routes/vendors";
 import { errorHandler } from "./middleware/error-handler";
 
 export const app = express();
@@ -23,5 +24,6 @@ app.get("/api/v1/health", (_req, res) => {
 });
 
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/vendors", vendorsRouter);
 
 app.use(errorHandler);
