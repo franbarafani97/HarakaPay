@@ -14,6 +14,9 @@
 #API
 #Express.JS, Prisma
 
+#Shared
+#Zod
+
 #Others
 #Docker
 
