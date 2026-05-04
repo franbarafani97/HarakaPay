@@ -130,10 +130,75 @@ describe("GET /api/v1/dashboard/summary", () => {
     expect(res.body.dueThisWeek).toBe(2);
   });
 
+  it("counts only scheduled bills with paymentDate in the next 7 days", async () => {
+    const now = new Date();
+    const inThreeDays = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const inFifteenDays = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+
+    await prisma.bill.createMany({
+      data: [
+        baseBill({ status: "scheduled", paymentDate: inThreeDays }),
+        baseBill({ status: "scheduled", paymentDate: inThreeDays }),
+        baseBill({ status: "scheduled", paymentDate: inFifteenDays }),
+        baseBill({ status: "approved", paymentDate: inThreeDays }),
+      ],
+    });
+
+    const a = await agentAs("approver");
+    const res = await a.get("/api/v1/dashboard/summary");
+
+    expect(res.body.scheduledThisWeek).toBe(2);
+  });
+
+  it("aggregates paid bills since start of current month", async () => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const fiveDaysAfterStart = new Date(
+      startOfMonth.getTime() + 5 * 24 * 60 * 60 * 1000,
+    );
+    const lastMonth = new Date(
+      startOfMonth.getTime() - 5 * 24 * 60 * 60 * 1000,
+    );
+
+    await prisma.bill.createMany({
+      data: [
+        baseBill({
+          status: "paid",
+          paymentDate: fiveDaysAfterStart,
+          amountCents: 12_000,
+        }),
+        baseBill({
+          status: "paid",
+          paymentDate: fiveDaysAfterStart,
+          amountCents: 33_500,
+        }),
+        baseBill({
+          status: "paid",
+          paymentDate: lastMonth,
+          amountCents: 999_999,
+        }),
+        baseBill({ status: "scheduled", paymentDate: fiveDaysAfterStart }),
+      ],
+    });
+
+    const a = await agentAs("approver");
+    const res = await a.get("/api/v1/dashboard/summary");
+
+    expect(res.body.paidThisMonth).toEqual({
+      count: 2,
+      totalCents: 45_500,
+    });
+  });
+
   it("returns zero counts when there are no bills", async () => {
     const a = await agentAs("approver");
     const res = await a.get("/api/v1/dashboard/summary");
 
-    expect(res.body).toEqual({ needsMyApproval: 0, dueThisWeek: 0 });
+    expect(res.body).toEqual({
+      needsMyApproval: 0,
+      dueThisWeek: 0,
+      scheduledThisWeek: 0,
+      paidThisMonth: { count: 0, totalCents: 0 },
+    });
   });
 });

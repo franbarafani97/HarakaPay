@@ -2,6 +2,20 @@ import { useNavigate } from "react-router-dom";
 import { useLogout, useMe } from "../hooks/useAuth";
 import { useDashboardSummary } from "../hooks/useDashboard";
 
+const moneyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+});
+
+function formatMoney(cents: number): string {
+  return moneyFormatter.format(cents / 100);
+}
+
+function pluralize(n: number, singular: string, plural: string) {
+  return `${n} ${n === 1 ? singular : plural}`;
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { data: user } = useMe();
@@ -11,6 +25,9 @@ export default function Dashboard() {
   function onLogout() {
     logout.mutate(undefined, { onSuccess: () => navigate("/login") });
   }
+
+  const data = summary.data;
+  const isLoading = summary.isLoading;
 
   return (
     <div className="min-h-screen bg-background">
@@ -35,13 +52,30 @@ export default function Dashboard() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card
             label="Needs my approval"
-            value={summary.data?.needsMyApproval}
-            loading={summary.isLoading}
+            value={data?.needsMyApproval}
+            loading={isLoading}
           />
           <Card
             label="Due this week"
-            value={summary.data?.dueThisWeek}
-            loading={summary.isLoading}
+            value={data?.dueThisWeek}
+            loading={isLoading}
+          />
+          <Card
+            label="Scheduled this week"
+            value={data?.scheduledThisWeek}
+            loading={isLoading}
+          />
+          <Card
+            label="Paid this month"
+            value={
+              data ? formatMoney(data.paidThisMonth.totalCents) : undefined
+            }
+            sublabel={
+              data
+                ? pluralize(data.paidThisMonth.count, "bill", "bills")
+                : undefined
+            }
+            loading={isLoading}
           />
         </div>
       </main>
@@ -52,10 +86,12 @@ export default function Dashboard() {
 function Card({
   label,
   value,
+  sublabel,
   loading,
 }: {
   label: string;
-  value: number | undefined;
+  value: string | number | undefined;
+  sublabel?: string;
   loading: boolean;
 }) {
   return (
@@ -64,6 +100,9 @@ function Card({
       <p className="mt-2 text-3xl font-semibold tabular-nums">
         {loading ? "—" : (value ?? 0)}
       </p>
+      {sublabel && !loading && (
+        <p className="mt-1 text-xs text-muted-foreground">{sublabel}</p>
+      )}
     </div>
   );
 }

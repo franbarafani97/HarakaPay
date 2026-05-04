@@ -13,9 +13,12 @@ import {
   TransitionRequestSchema,
   UpdateBillSchema,
 } from "@harakapay/shared";
+import path from "node:path";
+import fs from "node:fs";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../lib/api-error";
 import { requireAuth } from "../middleware/auth";
+import { uploadPdf, UPLOADS_PATH } from "../middleware/upload";
 import { bulkTransition, transitionBill } from "../services/state-machine";
 
 type BillWithIncludes = Bill & {
@@ -191,6 +194,59 @@ billsRouter.post("/:id/transition", async (req, res) => {
   const request = TransitionRequestSchema.parse(req.body);
   const bill = await transitionBill(req.params.id, request, req.user!);
   res.json({ bill: publicBill(bill) });
+});
+
+billsRouter.post("/:id/attachment", uploadPdf, async (req, res) => {
+  const billId = String(req.params.id);
+  const bill = await prisma.bill.findUnique({ where: { id: billId } });
+  if (!bill) {
+    await fs.promises
+      .unlink(path.join(UPLOADS_PATH, `${billId}.pdf`))
+      .catch(() => {});
+    throw new ApiError(404, "BILL_NOT_FOUND", "Bill not found");
+  }
+
+  const updated = await prisma.bill.update({
+    where: { id: billId },
+    data: {
+      attachmentUrl: `/api/v1/bills/${billId}/attachment`,
+      attachmentFilename: req.file!.originalname,
+    },
+    include: {
+      vendor: true,
+      lineItems: true,
+      activities: { orderBy: { createdAt: "asc" } },
+    },
+  });
+
+  res.json({ bill: publicBill(updated) });
+});
+
+billsRouter.get("/:id/attachment", async (req, res) => {
+  const bill = await prisma.bill.findUnique({
+    where: { id: req.params.id },
+  });
+  if (!bill || !bill.attachmentFilename) {
+    throw new ApiError(
+      404,
+      "ATTACHMENT_NOT_FOUND",
+      "No attachment for this bill",
+    );
+  }
+
+  const filePath = path.join(UPLOADS_PATH, `${bill.id}.pdf`);
+  if (!fs.existsSync(filePath)) {
+    throw new ApiError(
+      404,
+      "ATTACHMENT_NOT_FOUND",
+      "Attachment file is missing on disk",
+    );
+  }
+
+  const safeName = bill.attachmentFilename.replace(/"/g, "");
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `inline; filename="${safeName}"`);
+  fs.createReadStream(filePath).pipe(res);
 });
 
 billsRouter.get("/:id", async (req, res) => {
