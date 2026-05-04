@@ -4,6 +4,9 @@ import { useMe } from "./hooks/useAuth";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import NewBill from "./pages/NewBill";
+import BillsInbox from "./pages/BillsInbox";
+import BillDetail from "./pages/BillDetail";
 
 function RequireAuth({ children }: { children: ReactElement }) {
   const { data: user, isLoading } = useMe();
@@ -44,6 +47,30 @@ export default function App() {
           element={
             <RequireAuth>
               <Dashboard />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/bills"
+          element={
+            <RequireAuth>
+              <BillsInbox />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/bills/new"
+          element={
+            <RequireAuth>
+              <NewBill />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/bills/:id"
+          element={
+            <RequireAuth>
+              <BillDetail />
             </RequireAuth>
           }
         />

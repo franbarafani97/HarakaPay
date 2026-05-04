@@ -1,6 +1,13 @@
-import { useNavigate } from "react-router-dom";
-import { useLogout, useMe } from "../hooks/useAuth";
+import { Link } from "react-router-dom";
+import AppHeader from "../components/AppHeader";
 import { useDashboardSummary } from "../hooks/useDashboard";
+import { buttonVariants } from "../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+} from "../components/ui/card";
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -17,55 +24,39 @@ function pluralize(n: number, singular: string, plural: string) {
 }
 
 export default function Dashboard() {
-  const navigate = useNavigate();
-  const { data: user } = useMe();
-  const logout = useLogout();
   const summary = useDashboardSummary();
-
-  function onLogout() {
-    logout.mutate(undefined, { onSuccess: () => navigate("/login") });
-  }
 
   const data = summary.data;
   const isLoading = summary.isLoading;
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
-          <h1 className="text-lg font-semibold tracking-tight">HarakaPay</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">{user?.email}</span>
-            <button
-              onClick={onLogout}
-              disabled={logout.isPending}
-              className="rounded-md bg-secondary px-3 py-1.5 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80 disabled:opacity-50"
-            >
-              {logout.isPending ? "Signing out..." : "Sign out"}
-            </button>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="mx-auto max-w-6xl px-6 py-8">
-        <h2 className="text-2xl font-semibold mb-6">Dashboard</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-semibold tracking-tight">Dashboard</h2>
+          <Link to="/bills/new" className={buttonVariants()}>
+            + New bill
+          </Link>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card
+          <MetricCard
             label="Needs my approval"
             value={data?.needsMyApproval}
             loading={isLoading}
           />
-          <Card
+          <MetricCard
             label="Due this week"
             value={data?.dueThisWeek}
             loading={isLoading}
           />
-          <Card
+          <MetricCard
             label="Scheduled this week"
             value={data?.scheduledThisWeek}
             loading={isLoading}
           />
-          <Card
+          <MetricCard
             label="Paid this month"
             value={
               data ? formatMoney(data.paidThisMonth.totalCents) : undefined
@@ -83,7 +74,7 @@ export default function Dashboard() {
   );
 }
 
-function Card({
+function MetricCard({
   label,
   value,
   sublabel,
@@ -95,14 +86,18 @@ function Card({
   loading: boolean;
 }) {
   return (
-    <div className="rounded-lg border bg-card p-6">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-2 text-3xl font-semibold tabular-nums">
-        {loading ? "—" : (value ?? 0)}
-      </p>
-      {sublabel && !loading && (
-        <p className="mt-1 text-xs text-muted-foreground">{sublabel}</p>
-      )}
-    </div>
+    <Card>
+      <CardHeader className="pb-2">
+        <CardDescription>{label}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p className="text-3xl font-semibold tabular-nums">
+          {loading ? "—" : (value ?? 0)}
+        </p>
+        {sublabel && !loading && (
+          <p className="mt-1 text-xs text-muted-foreground">{sublabel}</p>
+        )}
+      </CardContent>
+    </Card>
   );
 }

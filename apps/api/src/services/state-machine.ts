@@ -19,8 +19,13 @@ type ActivityType =
 
 const billDetailInclude = {
   vendor: true,
+  submittedBy: { select: { id: true, name: true } },
+  approvedBy: { select: { id: true, name: true } },
   lineItems: true,
-  activities: { orderBy: { createdAt: "asc" } },
+  activities: {
+    orderBy: { createdAt: "asc" },
+    include: { user: { select: { id: true, name: true } } },
+  },
 } satisfies Prisma.BillInclude;
 
 export async function transitionBill(

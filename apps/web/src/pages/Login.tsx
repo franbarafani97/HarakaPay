@@ -1,6 +1,17 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useLogin } from "../hooks/useAuth";
+import { Button } from "../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -15,61 +26,59 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-5">
-        <h1 className="text-2xl font-semibold">Sign in</h1>
-
-        <div className="space-y-1.5">
-          <label htmlFor="email" className="text-sm font-medium">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <label htmlFor="password" className="text-sm font-medium">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring/40"
-          />
-        </div>
-
-        {login.isError && (
-          <p className="text-sm text-destructive">Invalid email or password.</p>
-        )}
-
-        <button
-          type="submit"
-          disabled={login.isPending}
-          className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-        >
-          {login.isPending ? "Signing in..." : "Sign in"}
-        </button>
-
-        <p className="text-sm text-center text-muted-foreground">
-          No account?{" "}
-          <Link
-            to="/signup"
-            className="text-primary underline-offset-4 hover:underline"
-          >
-            Create one
-          </Link>
-        </p>
-      </form>
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle>Sign in to HarakaPay</CardTitle>
+          <CardDescription>
+            Use your email and password to continue.
+          </CardDescription>
+        </CardHeader>
+        <form onSubmit={onSubmit}>
+          <CardContent className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            {login.isError && (
+              <p className="text-sm text-destructive">
+                Invalid email or password.
+              </p>
+            )}
+          </CardContent>
+          <CardFooter className="flex flex-col gap-3 items-stretch">
+            <Button type="submit" disabled={login.isPending} className="w-full">
+              {login.isPending ? "Signing in…" : "Sign in"}
+            </Button>
+            <p className="text-sm text-center text-muted-foreground">
+              No account?{" "}
+              <Link
+                to="/signup"
+                className="text-primary underline-offset-4 hover:underline"
+              >
+                Create one
+              </Link>
+            </p>
+          </CardFooter>
+        </form>
+      </Card>
     </div>
   );
 }

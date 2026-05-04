@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ActivitySchema } from "./activity.js";
 
 export const BillStatusSchema = z.enum([
   "draft",
@@ -46,7 +47,17 @@ export const BillSchema = z.object({
   rejectionReason: z.string().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  vendor: z.object({ id: z.string(), name: z.string() }).optional(),
+  submittedBy: z
+    .object({ id: z.string(), name: z.string() })
+    .nullable()
+    .optional(),
+  approvedBy: z
+    .object({ id: z.string(), name: z.string() })
+    .nullable()
+    .optional(),
   lineItems: z.array(LineItemSchema).optional(),
+  activities: z.array(ActivitySchema).optional(),
 });
 export type Bill = z.infer<typeof BillSchema>;
 

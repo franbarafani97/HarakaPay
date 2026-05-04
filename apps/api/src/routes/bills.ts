@@ -23,8 +23,12 @@ import { bulkTransition, transitionBill } from "../services/state-machine";
 
 type BillWithIncludes = Bill & {
   vendor?: { id: string; name: string } | Vendor | null;
+  submittedBy?: { id: string; name: string } | null;
+  approvedBy?: { id: string; name: string } | null;
   lineItems?: LineItem[];
-  activities?: Activity[];
+  activities?: (Activity & {
+    user?: { id: string; name: string } | null;
+  })[];
 };
 
 function publicBill(b: BillWithIncludes) {
@@ -49,6 +53,12 @@ function publicBill(b: BillWithIncludes) {
     createdAt: b.createdAt.toISOString(),
     updatedAt: b.updatedAt.toISOString(),
     ...(b.vendor && { vendor: { id: b.vendor.id, name: b.vendor.name } }),
+    ...(b.submittedBy != null && {
+      submittedBy: { id: b.submittedBy.id, name: b.submittedBy.name },
+    }),
+    ...(b.approvedBy != null && {
+      approvedBy: { id: b.approvedBy.id, name: b.approvedBy.name },
+    }),
     ...(b.lineItems && {
       lineItems: b.lineItems.map((li) => ({
         id: li.id,
@@ -66,6 +76,7 @@ function publicBill(b: BillWithIncludes) {
         type: a.type,
         metadata: a.metadata,
         createdAt: a.createdAt.toISOString(),
+        user: a.user ? { id: a.user.id, name: a.user.name } : null,
       })),
     }),
   };
@@ -254,8 +265,13 @@ billsRouter.get("/:id", async (req, res) => {
     where: { id: req.params.id },
     include: {
       vendor: true,
+      submittedBy: { select: { id: true, name: true } },
+      approvedBy: { select: { id: true, name: true } },
       lineItems: true,
-      activities: { orderBy: { createdAt: "asc" } },
+      activities: {
+        orderBy: { createdAt: "asc" },
+        include: { user: { select: { id: true, name: true } } },
+      },
     },
   });
   if (!bill) {
