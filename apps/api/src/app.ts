@@ -7,6 +7,7 @@ import { authRouter } from "./routes/auth";
 import { vendorsRouter } from "./routes/vendors";
 import { billsRouter } from "./routes/bills";
 import { dashboardRouter } from "./routes/dashboard";
+import { exportRouter } from "./routes/export";
 import { errorHandler } from "./middleware/error-handler";
 
 export const app = express();
@@ -29,5 +30,6 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/vendors", vendorsRouter);
 app.use("/api/v1/bills", billsRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
+app.use("/api/v1/export", exportRouter);
 
 app.use(errorHandler);
