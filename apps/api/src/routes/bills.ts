@@ -6,10 +6,17 @@ import {
   type Activity,
   type Vendor,
 } from "@prisma/client";
-import { BillFiltersSchema, CreateBillSchema } from "@harakapay/shared";
+import {
+  BillFiltersSchema,
+  BulkTransitionRequestSchema,
+  CreateBillSchema,
+  TransitionRequestSchema,
+  UpdateBillSchema,
+} from "@harakapay/shared";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../lib/api-error";
 import { requireAuth } from "../middleware/auth";
+import { bulkTransition, transitionBill } from "../services/state-machine";
 
 type BillWithIncludes = Bill & {
   vendor?: { id: string; name: string } | Vendor | null;
@@ -167,6 +174,25 @@ billsRouter.post("/", async (req, res) => {
   res.status(201).json({ bill: publicBill(bill) });
 });
 
+billsRouter.post("/bulk-transition", async (req, res) => {
+  const { billIds, to } = BulkTransitionRequestSchema.parse(req.body);
+  if (to !== "approved") {
+    throw new ApiError(
+      400,
+      "BULK_NOT_SUPPORTED",
+      "Bulk transitions only support 'approved'",
+    );
+  }
+  const results = await bulkTransition(billIds, "approved", req.user!);
+  res.json({ results });
+});
+
+billsRouter.post("/:id/transition", async (req, res) => {
+  const request = TransitionRequestSchema.parse(req.body);
+  const bill = await transitionBill(req.params.id, request, req.user!);
+  res.json({ bill: publicBill(bill) });
+});
+
 billsRouter.get("/:id", async (req, res) => {
   const bill = await prisma.bill.findUnique({
     where: { id: req.params.id },
@@ -180,4 +206,114 @@ billsRouter.get("/:id", async (req, res) => {
     throw new ApiError(404, "BILL_NOT_FOUND", "Bill not found");
   }
   res.json({ bill: publicBill(bill) });
+});
+
+billsRouter.patch("/:id", async (req, res) => {
+  const data = UpdateBillSchema.parse(req.body);
+
+  const existing = await prisma.bill.findUnique({
+    where: { id: req.params.id },
+  });
+  if (!existing) {
+    throw new ApiError(404, "BILL_NOT_FOUND", "Bill not found");
+  }
+
+  if (existing.status !== "draft" && existing.status !== "rejected") {
+    throw new ApiError(
+      409,
+      "BILL_NOT_EDITABLE",
+      `Cannot edit bill in status ${existing.status}`,
+      { status: existing.status },
+    );
+  }
+
+  if (data.vendorId && data.vendorId !== existing.vendorId) {
+    const vendor = await prisma.vendor.findUnique({
+      where: { id: data.vendorId },
+    });
+    if (!vendor) {
+      throw new ApiError(400, "VENDOR_NOT_FOUND", "Vendor does not exist");
+    }
+  }
+
+  const bill = await prisma.$transaction(async (tx) => {
+    if (data.lineItems !== undefined) {
+      await tx.lineItem.deleteMany({ where: { billId: req.params.id } });
+      if (data.lineItems.length > 0) {
+        await tx.lineItem.createMany({
+          data: data.lineItems.map((li) => ({
+            billId: req.params.id,
+            description: li.description,
+            amountCents: li.amountCents,
+            glCode: li.glCode ?? null,
+          })),
+        });
+      }
+    }
+
+    await tx.activity.create({
+      data: {
+        billId: req.params.id,
+        userId: req.user!.userId,
+        type: "edited",
+      },
+    });
+
+    return tx.bill.update({
+      where: { id: req.params.id },
+      data: {
+        ...(data.vendorId !== undefined && { vendorId: data.vendorId }),
+        ...(data.invoiceNumber !== undefined && {
+          invoiceNumber: data.invoiceNumber,
+        }),
+        ...(data.amountCents !== undefined && {
+          amountCents: data.amountCents,
+        }),
+        ...(data.issueDate !== undefined && {
+          issueDate: new Date(data.issueDate),
+        }),
+        ...(data.dueDate !== undefined && {
+          dueDate: new Date(data.dueDate),
+        }),
+        ...(data.memo !== undefined && { memo: data.memo }),
+        ...(data.glCode !== undefined && { glCode: data.glCode }),
+      },
+      include: {
+        vendor: true,
+        lineItems: true,
+        activities: { orderBy: { createdAt: "asc" } },
+      },
+    });
+  });
+
+  res.json({ bill: publicBill(bill) });
+});
+
+billsRouter.delete("/:id", async (req, res) => {
+  const bill = await prisma.bill.findUnique({
+    where: { id: req.params.id },
+  });
+  if (!bill) {
+    throw new ApiError(404, "BILL_NOT_FOUND", "Bill not found");
+  }
+
+  if (bill.status !== "draft") {
+    throw new ApiError(
+      409,
+      "BILL_NOT_DELETABLE",
+      `Cannot delete bill in status ${bill.status}`,
+      { status: bill.status },
+    );
+  }
+
+  if (bill.submittedById !== req.user!.userId) {
+    throw new ApiError(
+      403,
+      "FORBIDDEN",
+      "Only the submitter can delete this bill",
+    );
+  }
+
+  await prisma.bill.delete({ where: { id: req.params.id } });
+  res.status(204).send();
 });
