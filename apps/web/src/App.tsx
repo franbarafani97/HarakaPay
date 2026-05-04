@@ -1,7 +1,7 @@
 import { type ReactElement } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useMe } from "./hooks/useAuth";
-import Home from "./pages/Home";
+import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 
@@ -43,7 +43,7 @@ export default function App() {
           path="/"
           element={
             <RequireAuth>
-              <Home />
+              <Dashboard />
             </RequireAuth>
           }
         />

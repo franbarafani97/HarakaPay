@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import { authRouter } from "./routes/auth";
 import { vendorsRouter } from "./routes/vendors";
 import { billsRouter } from "./routes/bills";
+import { dashboardRouter } from "./routes/dashboard";
 import { errorHandler } from "./middleware/error-handler";
 
 export const app = express();
@@ -27,5 +28,6 @@ app.get("/api/v1/health", (_req, res) => {
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/vendors", vendorsRouter);
 app.use("/api/v1/bills", billsRouter);
+app.use("/api/v1/dashboard", dashboardRouter);
 
 app.use(errorHandler);
