@@ -5,7 +5,7 @@ services:
       POSTGRES_USER: harakapay
       POSTGRES_PASSWORD: harakapay
       POSTGRES_DB: harakapay
-    ports: ["5432:5432"]
+    ports: ["5433:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
 
 volumes:
