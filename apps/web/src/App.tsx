@@ -7,6 +7,7 @@ import Signup from "./pages/Signup";
 import NewBill from "./pages/NewBill";
 import BillsInbox from "./pages/BillsInbox";
 import BillDetail from "./pages/BillDetail";
+import EditBill from "./pages/EditBill";
 
 function RequireAuth({ children }: { children: ReactElement }) {
   const { data: user, isLoading } = useMe();
@@ -71,6 +72,14 @@ export default function App() {
           element={
             <RequireAuth>
               <BillDetail />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/bills/:id/edit"
+          element={
+            <RequireAuth>
+              <EditBill />
             </RequireAuth>
           }
         />

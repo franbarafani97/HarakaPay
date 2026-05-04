@@ -11,7 +11,7 @@ import AppHeader from "../components/AppHeader";
 import { StatusPill } from "../components/StatusPill";
 import { useMe } from "../hooks/useAuth";
 import { useBill, useDeleteBill, useTransitionBill } from "../hooks/useBills";
-import { Button } from "../components/ui/button";
+import { Button, buttonVariants } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import {
   Dialog,
@@ -333,6 +333,7 @@ function ActionBar({
   userId: string;
   onDeleted: () => void;
 }) {
+  const navigate = useNavigate();
   const transitionTargets = allowedTransitions(bill.status, role);
   const transition = useTransitionBill();
   const deleteBill = useDeleteBill();
@@ -343,12 +344,18 @@ function ActionBar({
   const [paymentDate, setPaymentDate] = useState("");
 
   const canDelete = bill.status === "draft" && bill.submittedById === userId;
+  const canEdit = bill.status === "draft";
   const isPending = transition.isPending || deleteBill.isPending;
 
   function fire(target: BillStatus) {
     if (target === "rejected") return setRejectOpen(true);
     if (target === "scheduled") return setScheduleOpen(true);
-    transition.mutate({ id: bill.id, to: target } as never);
+    const fromRejected = bill.status === "rejected" && target === "draft";
+    transition.mutate({ id: bill.id, to: target } as never, {
+      onSuccess: fromRejected
+        ? () => navigate(`/bills/${bill.id}/edit`)
+        : undefined,
+    });
   }
 
   function confirmReject() {
@@ -388,12 +395,20 @@ function ActionBar({
     deleteBill.mutate(bill.id, { onSuccess: onDeleted });
   }
 
-  if (transitionTargets.length === 0 && !canDelete) return null;
+  if (transitionTargets.length === 0 && !canDelete && !canEdit) return null;
 
   return (
     <>
       <Card className="mt-6">
         <CardContent className="py-4 flex flex-wrap items-center gap-2">
+          {canEdit && (
+            <Link
+              to={`/bills/${bill.id}/edit`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Edit
+            </Link>
+          )}
           {transitionTargets.map((target) => (
             <Button
               key={target}
@@ -521,6 +536,7 @@ function actionLabel(from: BillStatus, to: BillStatus): string {
   if (to === "scheduled") return "Schedule payment";
   if (to === "paid") return "Mark as paid";
   if (to === "draft" && from === "pending_approval") return "Recall to draft";
+  if (to === "draft" && from === "rejected") return "Revise";
   if (to === "draft") return "Edit (back to draft)";
   return to;
 }

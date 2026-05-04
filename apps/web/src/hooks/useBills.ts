@@ -4,6 +4,7 @@ import type {
   BillStatus,
   CreateBill,
   TransitionRequest,
+  UpdateBill,
 } from "@harakapay/shared";
 import { api } from "../lib/api";
 
@@ -39,6 +40,24 @@ export function useBill(id: string | undefined) {
       return data.bill;
     },
     enabled: !!id,
+  });
+}
+
+export function useUpdateBill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...data }: UpdateBill & { id: string }) => {
+      const { data: response } = await api.patch<{ bill: Bill }>(
+        `/bills/${id}`,
+        data,
+      );
+      return response.bill;
+    },
+    onSuccess: (bill) => {
+      qc.invalidateQueries({ queryKey: ["bills"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.setQueryData(["bills", "detail", bill.id], bill);
+    },
   });
 }
 
