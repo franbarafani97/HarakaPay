@@ -8,6 +8,7 @@ import NewBill from "./pages/NewBill";
 import BillsInbox from "./pages/BillsInbox";
 import BillDetail from "./pages/BillDetail";
 import EditBill from "./pages/EditBill";
+import MobileScan from "./pages/MobileScan";
 
 function RequireAuth({ children }: { children: ReactElement }) {
   const { data: user, isLoading } = useMe();
@@ -83,6 +84,7 @@ export default function App() {
             </RequireAuth>
           }
         />
+        <Route path="/scan/:token" element={<MobileScan />} />
       </Routes>
     </BrowserRouter>
   );

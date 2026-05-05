@@ -59,7 +59,15 @@ export type BillFormProps = {
   isError: boolean;
   errorMessage?: string;
   uploadErrorMessage?: string;
+  missingFields?: string[];
   onSubmit: (payload: BillFormPayload) => void;
+};
+
+const FIELD_LABELS: Record<string, string> = {
+  invoiceNumber: "invoice number",
+  amountDollars: "amount",
+  issueDate: "issue date",
+  dueDate: "due date",
 };
 
 function dateInputToISO(yyyymmdd: string): string {
@@ -80,6 +88,7 @@ export default function BillForm({
   isError,
   errorMessage,
   uploadErrorMessage,
+  missingFields,
   onSubmit,
 }: BillFormProps) {
   const vendors = useVendors();
@@ -113,6 +122,19 @@ export default function BillForm({
           : ""),
     }));
   }, [vendorDetail.data]);
+
+  useEffect(() => {
+    setForm({
+      vendorId: initial.vendorId,
+      invoiceNumber: initial.invoiceNumber,
+      amountDollars: initial.amountDollars,
+      issueDate: initial.issueDate,
+      dueDate: initial.dueDate,
+      memo: initial.memo,
+      glCode: initial.glCode,
+    });
+    setLineItems(initial.lineItems);
+  }, [initial]);
   const [newVendor, setNewVendor] = useState<{
     name: string;
     email: string;
@@ -171,8 +193,25 @@ export default function BillForm({
 
   const submitting = isPending || createVendor.isPending;
 
+  const missing = new Set(missingFields ?? []);
+  const hasMissing = missing.size > 0;
+
   return (
     <form onSubmit={handleSubmit}>
+      {hasMissing && (
+        <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm">
+          <p className="font-medium text-destructive">
+            Review extracted fields
+          </p>
+          <p className="mt-1 text-destructive/90">
+            We couldn't extract:{" "}
+            {Array.from(missing)
+              .map((f) => FIELD_LABELS[f] ?? f)
+              .join(", ")}
+            . Please fill them in.
+          </p>
+        </div>
+      )}
       <Card>
         <CardContent className="pt-6 space-y-5">
           <div className="space-y-1.5">
@@ -185,7 +224,12 @@ export default function BillForm({
                 }
               >
                 <SelectTrigger id="vendor" className="flex-1">
-                  <SelectValue placeholder="Select a vendor…" />
+                  <SelectValue placeholder="Select a vendor…">
+                    {(value) =>
+                      vendors.data?.find((vendor) => vendor.id === value)
+                        ?.name ?? value
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {vendors.data?.map((v) => (
@@ -240,7 +284,17 @@ export default function BillForm({
                       }
                     >
                       <SelectTrigger id="vendor-method">
-                        <SelectValue />
+                        <SelectValue>
+                          {(value) =>
+                            value === "ach"
+                              ? "ACH"
+                              : value === "check"
+                                ? "Check"
+                                : value === "wire"
+                                  ? "Wire"
+                                  : value
+                          }
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="ach">ACH</SelectItem>
@@ -273,6 +327,7 @@ export default function BillForm({
                 onChange={(e) =>
                   setForm((f) => ({ ...f, invoiceNumber: e.target.value }))
                 }
+                aria-invalid={missing.has("invoiceNumber") || undefined}
                 required
               />
             </div>
@@ -292,6 +347,7 @@ export default function BillForm({
                   onChange={(e) =>
                     setForm((f) => ({ ...f, amountDollars: e.target.value }))
                   }
+                  aria-invalid={missing.has("amountDollars") || undefined}
                   required
                 />
               </div>
@@ -308,6 +364,7 @@ export default function BillForm({
                 onChange={(e) =>
                   setForm((f) => ({ ...f, issueDate: e.target.value }))
                 }
+                aria-invalid={missing.has("issueDate") || undefined}
                 required
               />
             </div>
@@ -320,6 +377,7 @@ export default function BillForm({
                 onChange={(e) =>
                   setForm((f) => ({ ...f, dueDate: e.target.value }))
                 }
+                aria-invalid={missing.has("dueDate") || undefined}
                 required
               />
             </div>

@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import AppHeader from "../components/AppHeader";
+import { BillsListSection } from "../components/BillsListSection";
 import { useDashboardSummary } from "../hooks/useDashboard";
+import { apiBaseURL } from "../lib/api";
 import { buttonVariants } from "../components/ui/button";
 import {
   Card,
@@ -69,6 +71,18 @@ export default function Dashboard() {
             loading={isLoading}
           />
         </div>
+
+        <div className="mt-10 mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold tracking-tight">Bills</h3>
+          <a
+            href={`${apiBaseURL}/export/bills.csv`}
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            Export CSV
+          </a>
+        </div>
+
+        <BillsListSection />
       </main>
     </div>
   );
