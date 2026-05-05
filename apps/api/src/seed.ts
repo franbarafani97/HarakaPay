@@ -269,6 +269,14 @@ async function seedBill(args: SeedBillArgs) {
 }
 
 async function main() {
+  const userCount = await prisma.user.count();
+  if (userCount > 0 && process.env.FORCE_SEED !== "1") {
+    console.log(
+      "[seed] users already exist, skipping. Set FORCE_SEED=1 to wipe and reseed.",
+    );
+    return;
+  }
+
   console.log("[seed] truncating...");
   await prisma.bill.deleteMany();
   await prisma.vendor.deleteMany();

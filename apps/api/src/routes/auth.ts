@@ -9,10 +9,12 @@ import { requireAuth } from "../middleware/auth";
 const COOKIE_NAME = "session";
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
+const isProd = process.env.NODE_ENV === "production";
+
 const cookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax" as const,
+  secure: isProd,
+  sameSite: isProd ? ("none" as const) : ("lax" as const),
   maxAge: SEVEN_DAYS_MS,
   path: "/",
 };
