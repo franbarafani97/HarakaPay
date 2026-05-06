@@ -4,7 +4,7 @@ An MVP Payable product for small and medium size business.
 
 ## Demo
 
-Deployed at **https://harakapay-web.onrender.com**
+Deployed at **https://harakapay-nsa0.onrender.com/**
 
 Two seeded accounts:
 
