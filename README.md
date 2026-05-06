@@ -6,11 +6,6 @@ An MVP Payable product for small and medium sized business.
 
 Deployed at **https://harakapay-nsa0.onrender.com/**
 
-Two seeded accounts:
-
-- Sara — `sara@harakapay.demo` / `demo1234` (submitter)
-- Marcus — `marcus@harakapay.demo` / `demo1234` (approver)
-
 Quick tour:
 
 1. Log in as Marcus
