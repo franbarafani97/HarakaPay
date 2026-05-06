@@ -1,6 +1,6 @@
 # HarakaPay - Haraka means "Fast" in Swahili
 
-An MVP Payable product for small and medium size business.
+An MVP Payable product for small and medium sized business.
 
 ## Demo
 
