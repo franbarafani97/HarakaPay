@@ -1,40 +1,79 @@
 # HarakaPay - Haraka means "Fast" in Swahili
 
-# Payable Application
+An MVP Payable product for small and medium size business.
 
-#Stack
+## Demo
 
-#Architecture
+Deployed at **https://harakapay-web.onrender.com**
 
-# Web App - API - PSQL DB
+Two seeded accounts:
 
-#Web App Stack
-#React, Tailwind, Shadcn, Tanstack
+- Sara — `sara@harakapay.demo` / `demo1234` (submitter)
+- Marcus — `marcus@harakapay.demo` / `demo1234` (approver)
 
-#API
-#Express.JS, Prisma
+Quick tour:
 
-#Shared
-#Zod
+1. Log in as Marcus
+2. Approve a few with the `e` key. The inbox supports keyboard nav (`j`/`k` move, `Enter` opens, `e` approves a pending row).
+3. On any approved bill click **Schedule payment** → pick a date → **Mark as paid** generates a confirmation number.
+4. Log in as Sara → **+ New bill**. The form prefills GL code and last-used amount when you pick a vendor.
+5. Sara can also click **Scan from phone** — a QR opens a phone-side page; take a photo of an invoice (or pick a PDF), the form prefills with whatever Tesseract reads.
 
-#Others
-#Docker
+## Run locally
 
-## DATA MODEL
+Prerequisites: Node 22.12+, pnpm, Docker (for Postgres).
+
+```bash
+git clone <repo>
+cd harakapay
+nvm use                            # Node 22.12.0 from .nvmrc
+pnpm install
+docker compose up -d               # Postgres on host port 5433
+pnpm -F @harakapay/api exec prisma migrate deploy
+pnpm -F @harakapay/api seed        # 2 users, 12 vendors, 30 bills
+bash scripts/dev.sh                # api + web together
+```
+
+Web at http://localhost:5173, API at http://localhost:4000.
+
+To use the **scan-from-phone** flow on your LAN: visit the LAN IP shown by Vite (e.g. `http://192.168.1.10:5173`) instead of localhost. The phone scans the QR and hits the same LAN address. CORS allows private-IP origins in dev.
+
+## Bill State Machine
+
+```
+draft → pending_approval → approved → scheduled → paid
+                       ↘         ↘
+                       rejected  (rejected re-editable to draft via "Revise")
+```
+
+Basic Flow:
+
+- **Sara creates a bill.** Picks a vendor, enters amount/dates/memo, optionally adds line items and a PDF attachment. Saves as draft → submits for approval.
+- **Marcus approves.** Looks at his queue. Approves with one click (or `e`), or rejects with a reason.
+- **Marcus schedules and pays.** Approved bills get a payment date → `scheduled`. Marking paid generates a fake confirmation number → `paid`.
+- **Both see the state of the world.** Dashboard cards: needs-my-approval, due this week, scheduled this week, paid this month. Bills table below.
+
+## Architecture
+
+Monorepo (pnpm workspaces). Separate React SPA + Node/Express API + shared package.
+
+```
+apps/api          Express + Prisma + Postgres + Tesseract + JWT auth
+apps/web          Vite + React + TanStack Query + Tailwind v4 + shadcn/ui
+packages/shared   Zod schemas
+```
+
+## Data model
+
+`User`
+`Vendor`: is the counterparty being paid. Every bill belongs to one.
+`Bill`: is the core record. Amounts are stored as integer cents. The status enum has six values — `draft`, `pending_approval`, `approved`, `scheduled`, `paid`, and `rejected`.
+`LineItem`: is an optional breakdown of a bill into rows. They don't have to sum to the bill total.
+`Activity`: is an append-only audit log. Every status change writes one row in the same transaction as the bill update.
 
 ```prisma
-generator client {
-  provider = "prisma-client"
-  output   = "../node_modules/.prisma/client"
-}
-
-datasource db {
-  provider = "postgresql"
-}
-
 // ENUMS:
-
-// We have to roles in the app.
+// Two roles in the app.
 enum Role {
   submitter
   approver
@@ -80,7 +119,7 @@ model User {
   activities     Activity[]
 }
 
-//Vendor is the counterparty being paid.
+// Vendor is the counterparty being paid.
 model Vendor {
   id               String        @id @default(cuid())
   name             String
@@ -95,7 +134,6 @@ model Vendor {
 
   @@index([name])
 }
-
 
 // Bill:
 // It has 6 status: draft, pending_approval, approved, scheduled, paid, and rejected.
@@ -132,8 +170,7 @@ model Bill {
   @@index([vendorId])
 }
 
-// LineItem
-// is an optional breakdown of a bill into rows. They don't have to sum to the bill total.
+// LineItem is an optional breakdown of a bill into rows. They don't have to sum to the bill total.
 model LineItem {
   id          String  @id @default(cuid())
   billId      String
@@ -144,8 +181,7 @@ model LineItem {
   bill Bill @relation(fields: [billId], references: [id], onDelete: Cascade)
 }
 
-//Activity
-//Tracks status changes as the bill status updates.
+// Activity tracks every status change. Append-only.
 model Activity {
   id        String       @id @default(cuid())
   billId    String
@@ -161,18 +197,84 @@ model Activity {
 }
 ```
 
-#TO-DO
+## What was built
 
-# Create CI/CD Pipeline with github actions
+| Built                                          | Notes                                                              |
+| ---------------------------------------------- | ------------------------------------------------------------------ |
+| Vendor CRUD + inline create                    | API + UI                                                           |
+| Bill draft → submit → approve → schedule → pay | All transitions server-enforced                                    |
+| Reject with reason; revise back to draft       |
+| Bulk approve from inbox                        | Approver-only; checkbox column appears when there are pending rows |
+| Edit bill (draft + rejected)                   |
+| Activity log per bill                          | Append-only, with user names and relative timestamps               |
+| Dashboard with 4 cards                         | Role-aware "needs my approval"                                     |
+| Bills inbox + status filter + keyboard nav     | `j` / `k` / `Enter` / `e`                                          |
+| PDF attachment upload + inline link on detail  | Per bill, 10 MB cap                                                |
+| CSV export                                     | Human-readable headers, dollar amounts                             |
+| Phone scan with OCR prefill                    | Tesseract + SSE; PDFs rendered to PNG on the device                |
 
-# Search where to host WEB app (Maybe Firebase hosting?)
+What was was cut out of the scope:
 
-# Search where to host the API
+| Cut                        | Reason                                              |
+| -------------------------- | --------------------------------------------------- |
+| Multi-org / tenancy        | Single seeded org → faster review, simpler tests    |
+| Multi-step approval chains | Single approver tier covers most real flows         |
+| Real ACH / Stripe rails    | Compliance + scope blowup; payment is simulated     |
+| Multi-currency             | USD only                                            |
+| Email-forward ingestion    | Higher cost / lower signal than the phone-scan path |
 
-# Work on Backend
+## Tests
 
-# Work on Front
+```bash
+pnpm -F @harakapay/api test
+```
 
-# Check if possible to add stripe with a dev environment. Apparently there is no free tier, maybe mercadopago could do it as payment example
+Test cases cover:
 
-# Add a human Liveness check before confirming a payment for security. React Faceplugin.
+- Auth — register / login / logout / me
+- Vendor CRUD + stats rollup
+- Bill create / list / get / patch / delete
+- Full state machine transition matrix
+- Bulk transition
+- Attachment upload and serve
+- Dashboard summary
+- CSV export
+
+There is no frontend tests
+
+## Project layout
+
+```
+harakapay/
+├── apps/
+│   ├── api/                  Express + Prisma + Tesseract
+│   │   ├── prisma/
+│   │   │   ├── schema.prisma
+│   │   │   └── migrations/
+│   │   ├── src/
+│   │   │   ├── routes/       auth, vendors, bills, dashboard, export, scan-sessions
+│   │   │   ├── services/     state-machine, scan-sessions, ocr
+│   │   │   ├── middleware/   requireAuth, error-handler, upload
+│   │   │   ├── lib/          prisma client, jwt, password, api-error
+│   │   │   ├── seed.ts
+│   │   │   ├── app.ts
+│   │   │   └── index.ts
+│   │   └── tests/            vitest (103 cases)
+│   └── web/
+│       └── src/
+│           ├── pages/        Login, Signup, Dashboard, BillsInbox, NewBill,
+│           │                 EditBill, BillDetail, MobileScan
+│           ├── components/   AppHeader, BillForm, BillsListSection, StatusPill,
+│           │                 ScanFromPhoneDialog, ui/ (shadcn)
+│           ├── hooks/        useAuth, useBills, useVendors, useDashboard
+│           └── lib/          api client, pdf-to-image, utils
+├── packages/
+│   └── shared/               Zod schemas + state machine
+│       └── src/              user, vendor, bill, activity, status, dashboard, scan
+├── scripts/
+│   ├── setup.sh              Bootstrap fresh repo (idempotent)
+│   └── dev.sh                Run api + web together
+├── docker-compose.yml        Postgres on 5433
+├── pnpm-workspace.yaml
+└── README.md
+```
