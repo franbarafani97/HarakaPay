@@ -1,11 +1,16 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useLogout, useMe } from "../hooks/useAuth";
+import { useConfig } from "../hooks/useConfig";
 import { Button } from "./ui/button";
 
 export default function AppHeader() {
   const navigate = useNavigate();
   const { data: user } = useMe();
+  const { data: config } = useConfig();
   const logout = useLogout();
+
+  const demoMode = !!config?.demoSkipLogin || !!config?.demoAllowAllApprovals;
+  const hideSignOut = !!config?.demoSkipLogin;
 
   function onLogout() {
     logout.mutate(undefined, { onSuccess: () => navigate("/login") });
@@ -37,17 +42,32 @@ export default function AppHeader() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
+          {demoMode && (
+            <span
+              className="text-xs font-medium tracking-wide uppercase rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-700 px-2.5 py-0.5"
+              title={[
+                config?.demoSkipLogin && "login disabled",
+                config?.demoAllowAllApprovals && "any user can approve",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            >
+              Demo mode
+            </span>
+          )}
           <span className="text-sm text-muted-foreground hidden sm:inline">
             {user?.email}
           </span>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onLogout}
-            disabled={logout.isPending}
-          >
-            {logout.isPending ? "Signing out…" : "Sign out"}
-          </Button>
+          {!hideSignOut && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onLogout}
+              disabled={logout.isPending}
+            >
+              {logout.isPending ? "Signing out…" : "Sign out"}
+            </Button>
+          )}
         </div>
       </div>
     </header>

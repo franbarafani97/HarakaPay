@@ -10,6 +10,8 @@ import { dashboardRouter } from "./routes/dashboard";
 import { exportRouter } from "./routes/export";
 import { scanSessionsRouter } from "./routes/scan-sessions";
 import { errorHandler } from "./middleware/error-handler";
+import { isDemoAllowAllApprovals, isDemoSkipLogin } from "./lib/demo-mode";
+import { prisma } from "./lib/prisma";
 
 export const app = express();
 
@@ -36,6 +38,22 @@ app.use(cookieParser());
 
 app.get("/api/v1/health", (_req, res) => {
   res.json({ ok: true });
+});
+
+app.get("/api/v1/health/db", async (_req, res, next) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ ok: true });
+  } catch (e) {
+    next(e);
+  }
+});
+
+app.get("/api/v1/config", (_req, res) => {
+  res.json({
+    demoSkipLogin: isDemoSkipLogin(),
+    demoAllowAllApprovals: isDemoAllowAllApprovals(),
+  });
 });
 
 app.use("/api/v1/auth", authRouter);

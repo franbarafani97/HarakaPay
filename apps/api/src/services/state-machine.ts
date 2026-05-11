@@ -4,6 +4,7 @@ import { canTransition, type TransitionRequest } from "@harakapay/shared";
 import { prisma } from "../lib/prisma";
 import { ApiError } from "../lib/api-error";
 import type { SessionPayload } from "../lib/jwt";
+import { isDemoAllowAllApprovals } from "../lib/demo-mode";
 
 function generateConfirmation() {
   return "PAY-" + randomBytes(6).toString("hex").toUpperCase();
@@ -38,7 +39,11 @@ export async function transitionBill(
     throw new ApiError(404, "BILL_NOT_FOUND", "Bill not found");
   }
 
-  if (!canTransition(bill.status, request.to, user.role)) {
+  const allowed =
+    canTransition(bill.status, request.to, user.role) ||
+    (isDemoAllowAllApprovals() &&
+      canTransition(bill.status, request.to, "approver"));
+  if (!allowed) {
     throw new ApiError(
       409,
       "STATE_TRANSITION_NOT_ALLOWED",

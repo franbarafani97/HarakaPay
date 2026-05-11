@@ -7,8 +7,26 @@ import {
   type PaymentMethod,
 } from "@prisma/client";
 import { prisma } from "./lib/prisma";
+import {
+  DEMO_USER_EMAIL,
+  DEMO_USER_NAME,
+  DEMO_USER_ROLE,
+} from "./lib/demo-mode";
 
 const DEMO_PASSWORD = "demo1234";
+
+async function ensureDemoUser(passwordHash: string) {
+  await prisma.user.upsert({
+    where: { email: DEMO_USER_EMAIL },
+    update: { name: DEMO_USER_NAME, role: DEMO_USER_ROLE },
+    create: {
+      email: DEMO_USER_EMAIL,
+      name: DEMO_USER_NAME,
+      role: DEMO_USER_ROLE,
+      passwordHash,
+    },
+  });
+}
 
 const VENDORS: Array<{
   name: string;
@@ -269,11 +287,15 @@ async function seedBill(args: SeedBillArgs) {
 }
 
 async function main() {
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
+
   const userCount = await prisma.user.count();
   if (userCount > 0 && process.env.FORCE_SEED !== "1") {
+    await ensureDemoUser(passwordHash);
     console.log(
       "[seed] users already exist, skipping. Set FORCE_SEED=1 to wipe and reseed.",
     );
+    console.log(`[seed] demo user ensured: ${DEMO_USER_EMAIL}`);
     return;
   }
 
@@ -283,7 +305,7 @@ async function main() {
   await prisma.user.deleteMany();
 
   console.log("[seed] users...");
-  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
+  await ensureDemoUser(passwordHash);
   const sara = await prisma.user.create({
     data: {
       name: "Sara",
@@ -386,13 +408,16 @@ async function main() {
 
   const total = await prisma.bill.count();
   console.log(
-    `[seed] done. ${total} bills, ${vendors.length} vendors, 2 users`,
+    `[seed] done. ${total} bills, ${vendors.length} vendors, 3 users`,
   );
   console.log(
     `[seed] login: sara@harakapay.demo / ${DEMO_PASSWORD} (submitter)`,
   );
   console.log(
     `[seed] login: marcus@harakapay.demo / ${DEMO_PASSWORD} (approver)`,
+  );
+  console.log(
+    `[seed] login: ${DEMO_USER_EMAIL} / ${DEMO_PASSWORD} (${DEMO_USER_ROLE})`,
   );
 }
 

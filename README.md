@@ -25,7 +25,7 @@ nvm use                            # Node 22.12.0 from .nvmrc
 pnpm install
 docker compose up -d               # Postgres on host port 5433
 pnpm -F @harakapay/api exec prisma migrate deploy
-pnpm -F @harakapay/api seed        # 2 users, 12 vendors, 30 bills
+pnpm -F @harakapay/api seed        # 3 users, 12 vendors, 30 bills
 bash scripts/dev.sh                # api + web together
 ```
 
