@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useLogout, useMe } from "../hooks/useAuth";
 import { useConfig } from "../hooks/useConfig";
 import { Button } from "./ui/button";
+import logoUrl from "../assets/harakapay-icon.jpg";
 
 export default function AppHeader() {
   const navigate = useNavigate();
@@ -22,9 +23,10 @@ export default function AppHeader() {
         <div className="flex items-center gap-8">
           <Link
             to="/"
-            className="text-lg font-semibold tracking-tight hover:opacity-80"
+            className="flex items-center hover:opacity-80"
+            aria-label="HarakaPay home"
           >
-            HarakaPay
+            <img src={logoUrl} alt="HarakaPay" className="h-9 w-9 rounded-md" />
           </Link>
           <nav className="flex items-center gap-5 text-sm">
             <Link

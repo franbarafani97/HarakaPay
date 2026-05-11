@@ -12,6 +12,7 @@ import {
 } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import logoUrl from "../assets/harakapay-icon.jpg";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -27,7 +28,12 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <Card className="w-full max-w-sm">
-        <CardHeader>
+        <CardHeader className="items-center text-center">
+          <img
+            src={logoUrl}
+            alt="HarakaPay"
+            className="h-20 w-20 rounded-xl mb-3"
+          />
           <CardTitle>Sign in to HarakaPay</CardTitle>
           <CardDescription>
             Use your email and password to continue.
