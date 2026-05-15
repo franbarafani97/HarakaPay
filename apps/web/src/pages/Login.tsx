@@ -12,7 +12,7 @@ import {
 } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import logoUrl from "../assets/harakapay-icon.jpg";
+import { HPMark } from "../components/HPMark";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -29,11 +29,9 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
-          <img
-            src={logoUrl}
-            alt="HarakaPay"
-            className="h-20 w-20 rounded-xl mb-3"
-          />
+          <div className="mb-3 flex h-16 w-16 items-center justify-center">
+            <HPMark size={56} radius={14} />
+          </div>
           <CardTitle>Sign in to HarakaPay</CardTitle>
           <CardDescription>
             Use your email and password to continue.
@@ -52,7 +50,7 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 pb-6">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"

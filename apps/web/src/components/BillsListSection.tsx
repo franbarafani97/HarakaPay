@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Bill, BillStatus } from "@harakapay/shared";
 import { StatusPill } from "./StatusPill";
+import { VendorAvatar } from "./VendorAvatar";
+import { HPKey } from "./HPKey";
+import { SegmentedFilter } from "./SegmentedFilter";
 import { useMe } from "../hooks/useAuth";
 import {
   useBillsList,
@@ -9,29 +12,19 @@ import {
   useTransitionBill,
 } from "../hooks/useBills";
 import { Button } from "./ui/button";
-import { Card, CardContent } from "./ui/card";
 import { Checkbox } from "./ui/checkbox";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "./ui/table";
-import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { cn } from "../lib/utils";
 
 type FilterValue = BillStatus | "all";
 
-const STATUS_TABS: Array<{ value: FilterValue; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "draft", label: "Draft" },
-  { value: "pending_approval", label: "Pending" },
-  { value: "approved", label: "Approved" },
-  { value: "scheduled", label: "Scheduled" },
-  { value: "paid", label: "Paid" },
-  { value: "rejected", label: "Rejected" },
+const STATUS_TABS = [
+  { value: "all" as const, label: "All" },
+  { value: "draft" as const, label: "Draft" },
+  { value: "pending_approval" as const, label: "Pending" },
+  { value: "approved" as const, label: "Approved" },
+  { value: "scheduled" as const, label: "Scheduled" },
+  { value: "paid" as const, label: "Paid" },
+  { value: "rejected" as const, label: "Rejected" },
 ];
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
@@ -46,13 +39,32 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
 });
 
-export function BillsListSection() {
-  const [filter, setFilter] = useState<FilterValue>("all");
+const ROW_GRID =
+  "grid-cols-[40px_1.5fr_1fr_1fr_1.1fr_110px_24px] gap-x-4 px-[22px] py-4";
+
+export function BillsListSection({
+  filter,
+  onFilterChange,
+  showFilter = true,
+}: {
+  filter?: FilterValue;
+  onFilterChange?: (next: FilterValue) => void;
+  showFilter?: boolean;
+}) {
+  const [internalFilter, setInternalFilter] = useState<FilterValue>("all");
   const navigate = useNavigate();
   const { data: user } = useMe();
   const isApprover = user?.role === "approver";
 
-  const bills = useBillsList(filter === "all" ? {} : { status: filter });
+  const activeFilter = filter ?? internalFilter;
+  const setFilter = (next: FilterValue) => {
+    setInternalFilter(next);
+    onFilterChange?.(next);
+  };
+
+  const bills = useBillsList(
+    activeFilter === "all" ? {} : { status: activeFilter },
+  );
   const transitionBill = useTransitionBill();
   const bulkApprove = useBulkApprove();
 
@@ -64,9 +76,9 @@ export function BillsListSection() {
     setSelected(new Set());
     setResultMessage(null);
     setActiveIndex(0);
-  }, [filter]);
+  }, [activeFilter]);
 
-  const list = bills.data?.bills ?? [];
+  const list = useMemo(() => bills.data?.bills ?? [], [bills.data]);
 
   useEffect(() => {
     if (activeIndex >= list.length) {
@@ -86,10 +98,10 @@ export function BillsListSection() {
       }
       if (list.length === 0) return;
 
-      if (e.key === "j" || e.key === "ArrowDown") {
+      if (e.key === "ArrowDown" || e.key === "j") {
         e.preventDefault();
         setActiveIndex((i) => Math.min(i + 1, list.length - 1));
-      } else if (e.key === "k" || e.key === "ArrowUp") {
+      } else if (e.key === "ArrowUp" || e.key === "k") {
         e.preventDefault();
         setActiveIndex((i) => Math.max(i - 1, 0));
       } else if (e.key === "Enter") {
@@ -98,7 +110,7 @@ export function BillsListSection() {
           e.preventDefault();
           navigate(`/bills/${bill.id}`);
         }
-      } else if (e.key === "e" && isApprover) {
+      } else if ((e.key === "e" || e.key === "E") && isApprover) {
         const bill = list[activeIndex];
         if (bill?.status === "pending_approval") {
           e.preventDefault();
@@ -116,12 +128,13 @@ export function BillsListSection() {
     if (el) el.scrollIntoView({ block: "nearest" });
   }, [activeIndex]);
 
-  const selectableIds = list
-    .filter((b) => b.status === "pending_approval")
-    .map((b) => b.id);
+  const selectableIds = useMemo(
+    () => list.filter((b) => b.status === "pending_approval").map((b) => b.id),
+    [list],
+  );
   const allSelected =
     selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
-  const showSelectionColumn = isApprover && selectableIds.length > 0;
+  const showSelection = isApprover && selectableIds.length > 0;
 
   function toggleRow(id: string) {
     setSelected((prev) => {
@@ -140,89 +153,97 @@ export function BillsListSection() {
     const ids = Array.from(selected);
     if (ids.length === 0) return;
     const results = await bulkApprove.mutateAsync(ids);
-    const failedCount = results.filter((r) => !r.success).length;
+    const failed = results.filter((r) => !r.success).length;
     setSelected(new Set());
     setResultMessage(
-      failedCount === 0
+      failed === 0
         ? `${results.length} bill${results.length > 1 ? "s" : ""} approved.`
-        : `Approved ${results.length - failedCount} of ${results.length}. ${failedCount} could not be approved (state changed).`,
+        : `Approved ${results.length - failed} of ${results.length}. ${failed} could not be approved (state changed).`,
     );
   }
 
   return (
     <div>
-      <Tabs
-        value={filter}
-        onValueChange={(v) => setFilter(v as FilterValue)}
-        className="mb-4"
-      >
-        <TabsList>
-          {STATUS_TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value}>
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      {showFilter && (
+        <div className="mb-4">
+          <SegmentedFilter
+            ariaLabel="Filter bills by status"
+            options={STATUS_TABS}
+            value={activeFilter}
+            onChange={setFilter}
+          />
+        </div>
+      )}
 
-      {selected.size > 0 && (
-        <Card className="mb-4">
-          <CardContent className="py-3 flex items-center justify-between">
-            <p className="text-sm">
-              <span className="font-medium">{selected.size}</span> selected
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelected(new Set())}
-                disabled={bulkApprove.isPending}
-              >
-                Clear
-              </Button>
-              <Button
-                size="sm"
-                onClick={onBulkApprove}
-                disabled={bulkApprove.isPending}
-              >
-                {bulkApprove.isPending
-                  ? "Approving…"
-                  : `Approve ${selected.size}`}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      {showSelection && selected.size > 0 && (
+        <div className="mb-4 flex items-center justify-between rounded-xl border border-hp-border bg-hp-surface px-4 py-3">
+          <p className="text-sm">
+            <span className="font-medium">{selected.size}</span> selected
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelected(new Set())}
+              disabled={bulkApprove.isPending}
+            >
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              onClick={onBulkApprove}
+              disabled={bulkApprove.isPending}
+            >
+              {bulkApprove.isPending
+                ? "Approving…"
+                : `Approve ${selected.size}`}
+            </Button>
+          </div>
+        </div>
       )}
 
       {resultMessage && selected.size === 0 && (
-        <p className="mb-4 text-sm text-muted-foreground">{resultMessage}</p>
+        <p className="mb-4 text-sm text-hp-text-dim">{resultMessage}</p>
       )}
 
       {bills.isLoading ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            Loading…
-          </CardContent>
-        </Card>
+        <BillsCardShell>
+          <SkeletonRows />
+        </BillsCardShell>
       ) : bills.isError ? (
-        <Card>
-          <CardContent className="py-12 text-center text-destructive">
+        <BillsCardShell>
+          <div className="py-16 text-center text-destructive">
             Could not load bills.
-          </CardContent>
-        </Card>
+          </div>
+        </BillsCardShell>
       ) : list.length === 0 ? (
-        <EmptyState filter={filter} />
+        <EmptyState filter={activeFilter} onClear={() => setFilter("all")} />
       ) : (
         <>
-          <BillsTable
-            bills={list}
-            activeIndex={activeIndex}
-            selected={selected}
-            onToggleRow={toggleRow}
-            onToggleAll={toggleAll}
-            allSelected={allSelected}
-            showSelectionColumn={showSelectionColumn}
-          />
+          {showSelection && (
+            <div className="mb-2 flex items-center gap-2 pl-[22px] text-[12px] text-hp-text-dim">
+              <Checkbox
+                checked={allSelected}
+                onCheckedChange={toggleAll}
+                aria-label="Select all pending bills"
+              />
+              <span>Select all pending</span>
+            </div>
+          )}
+          <BillsCardShell>
+            {list.map((bill, i) => (
+              <BillRow
+                key={bill.id}
+                bill={bill}
+                isLast={i === list.length - 1}
+                isActive={i === activeIndex}
+                selectable={isApprover && bill.status === "pending_approval"}
+                selected={selected.has(bill.id)}
+                onToggle={() => toggleRow(bill.id)}
+                onOpen={() => navigate(`/bills/${bill.id}`)}
+              />
+            ))}
+          </BillsCardShell>
           <KeyboardHint isApprover={isApprover} />
         </>
       )}
@@ -230,133 +251,170 @@ export function BillsListSection() {
   );
 }
 
-function BillsTable({
-  bills,
-  activeIndex,
-  selected,
-  onToggleRow,
-  onToggleAll,
-  allSelected,
-  showSelectionColumn,
-}: {
-  bills: Bill[];
-  activeIndex: number;
-  selected: Set<string>;
-  onToggleRow: (id: string) => void;
-  onToggleAll: () => void;
-  allSelected: boolean;
-  showSelectionColumn: boolean;
-}) {
-  const navigate = useNavigate();
+function BillsCardShell({ children }: { children: React.ReactNode }) {
   return (
-    <Card className="overflow-hidden p-0">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {showSelectionColumn && (
-              <TableHead className="w-10">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={onToggleAll}
-                  aria-label="Select all pending bills"
-                />
-              </TableHead>
-            )}
-            <TableHead>Vendor</TableHead>
-            <TableHead>Invoice #</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
-            <TableHead>Due</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {bills.map((bill, i) => {
-            const isPending = bill.status === "pending_approval";
-            const isActive = i === activeIndex;
-            return (
-              <TableRow
-                key={bill.id}
-                onClick={() => navigate(`/bills/${bill.id}`)}
-                data-active-row={isActive ? "true" : undefined}
-                className={cn(
-                  "cursor-pointer transition-colors",
-                  isActive && "bg-muted/50",
-                )}
-              >
-                {showSelectionColumn && (
-                  <TableCell
-                    className="w-10"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {isPending && (
-                      <Checkbox
-                        checked={selected.has(bill.id)}
-                        onCheckedChange={() => onToggleRow(bill.id)}
-                        aria-label={`Select bill ${bill.invoiceNumber}`}
-                      />
-                    )}
-                  </TableCell>
-                )}
-                <TableCell className="font-medium">
-                  {bill.vendor?.name ?? "—"}
-                </TableCell>
-                <TableCell className="text-muted-foreground tabular-nums">
-                  {bill.invoiceNumber}
-                </TableCell>
-                <TableCell className="text-right tabular-nums font-medium">
-                  {moneyFormatter.format(bill.amountCents / 100)}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {dateFormatter.format(new Date(bill.dueDate))}
-                </TableCell>
-                <TableCell>
-                  <StatusPill status={bill.status} />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </Card>
+    <div className="overflow-hidden rounded-[18px] border border-hp-border bg-hp-surface backdrop-blur-xl">
+      {children}
+    </div>
+  );
+}
+
+function BillRow({
+  bill,
+  isLast,
+  isActive,
+  selectable,
+  selected,
+  onToggle,
+  onOpen,
+}: {
+  bill: Bill;
+  isLast: boolean;
+  isActive: boolean;
+  selectable: boolean;
+  selected: boolean;
+  onToggle: () => void;
+  onOpen: () => void;
+}) {
+  const vendorName = bill.vendor?.name ?? "—";
+  return (
+    <div
+      data-active-row={isActive ? "true" : undefined}
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className={cn(
+        "grid items-center cursor-pointer transition-colors duration-150",
+        ROW_GRID,
+        !isLast && "border-b border-white/[0.05] dark:border-white/[0.05]",
+        isActive ? "bg-foreground/[0.04]" : "hover:bg-foreground/[0.04]",
+      )}
+    >
+      {selectable ? (
+        <div onClick={(e) => e.stopPropagation()} className="flex items-center">
+          <Checkbox
+            checked={selected}
+            onCheckedChange={onToggle}
+            aria-label={`Select bill ${bill.invoiceNumber}`}
+          />
+        </div>
+      ) : (
+        <VendorAvatar name={vendorName} size={32} />
+      )}
+
+      <div className="min-w-0">
+        <div className="truncate text-[14px] font-semibold text-foreground">
+          {vendorName}
+        </div>
+        <div className="mt-0.5 truncate font-mono text-[11.5px] text-hp-text-mute">
+          {bill.invoiceNumber}
+        </div>
+      </div>
+
+      <div className="font-mono text-[14px] font-medium tabular-nums text-foreground">
+        {moneyFormatter.format(bill.amountCents / 100)}
+      </div>
+
+      <div className="text-[13px] text-hp-text-dim">
+        {dateFormatter.format(new Date(bill.dueDate))}
+      </div>
+
+      <div className="font-mono text-[12px] text-hp-text-mute">
+        issued {dateFormatter.format(new Date(bill.issueDate))}
+      </div>
+
+      <div>
+        <StatusPill status={bill.status} />
+      </div>
+
+      <div
+        aria-hidden="true"
+        className="text-right text-[16px] leading-none text-hp-text-mute"
+      >
+        ›
+      </div>
+    </div>
   );
 }
 
 function KeyboardHint({ isApprover }: { isApprover: boolean }) {
   return (
-    <p className="mt-3 text-xs text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
-      <span>
-        <Kbd>j</Kbd>
-        <span className="mx-1">/</span>
-        <Kbd>k</Kbd> navigate
+    <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[11.5px] text-hp-text-mute">
+      <span className="inline-flex items-center gap-1.5">
+        <HPKey>↑</HPKey>
+        <HPKey>↓</HPKey>
+        <span>navigate</span>
       </span>
-      <span>
-        <Kbd>↵</Kbd> open
+      <span className="inline-flex items-center gap-1.5">
+        <HPKey>↵</HPKey>
+        <span>open</span>
       </span>
       {isApprover && (
-        <span>
-          <Kbd>e</Kbd> approve pending
+        <span className="inline-flex items-center gap-1.5">
+          <HPKey>E</HPKey>
+          <span>approve</span>
         </span>
       )}
-    </p>
+    </div>
   );
 }
 
-function Kbd({ children }: { children: React.ReactNode }) {
+function SkeletonRows() {
   return (
-    <kbd className="rounded border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-foreground">
-      {children}
-    </kbd>
+    <>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div
+          key={i}
+          className={cn(
+            "grid items-center",
+            ROW_GRID,
+            i !== 4 && "border-b border-white/[0.05]",
+          )}
+        >
+          <div className="h-8 w-8 animate-pulse rounded-[9px] bg-foreground/10" />
+          <div className="space-y-2">
+            <div className="h-3.5 w-32 animate-pulse rounded bg-foreground/10" />
+            <div className="h-3 w-20 animate-pulse rounded bg-foreground/10" />
+          </div>
+          <div className="h-3.5 w-20 animate-pulse rounded bg-foreground/10" />
+          <div className="h-3.5 w-24 animate-pulse rounded bg-foreground/10" />
+          <div className="h-3.5 w-28 animate-pulse rounded bg-foreground/10" />
+          <div className="h-5 w-20 animate-pulse rounded-full bg-foreground/10" />
+          <div />
+        </div>
+      ))}
+    </>
   );
 }
 
-function EmptyState({ filter }: { filter: FilterValue }) {
+function EmptyState({
+  filter,
+  onClear,
+}: {
+  filter: FilterValue;
+  onClear: () => void;
+}) {
+  const tabLabel =
+    STATUS_TABS.find((t) => t.value === filter)?.label.toLowerCase() ?? "";
+  const message = filter === "all" ? "No bills yet." : `No ${tabLabel} bills.`;
   return (
-    <Card>
-      <CardContent className="py-12 text-center">
-        <p className="text-muted-foreground">
-          {filter === "all" ? "No bills yet." : "No bills with this status."}
-        </p>
-      </CardContent>
-    </Card>
+    <div className="rounded-[18px] border border-hp-border bg-hp-surface p-12 text-center">
+      <p className="text-[16px] font-medium text-foreground">{message}</p>
+      {filter !== "all" && (
+        <button
+          type="button"
+          onClick={onClear}
+          className="mt-4 inline-flex items-center rounded-full border border-hp-border bg-transparent px-4 py-1.5 text-[12.5px] font-medium text-foreground transition-colors hover:bg-foreground/5"
+        >
+          Clear filter
+        </button>
+      )}
+    </div>
   );
 }

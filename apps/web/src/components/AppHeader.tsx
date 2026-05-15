@@ -1,11 +1,24 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useLogout, useMe } from "../hooks/useAuth";
 import { useConfig } from "../hooks/useConfig";
 import { Button } from "./ui/button";
-import logoUrl from "../assets/harakapay-icon.jpg";
+import { HPMark } from "./HPMark";
+import { SettingsMenu } from "./SettingsMenu";
+import { cn } from "../lib/utils";
+
+const NAV_ITEMS = [
+  { to: "/", label: "Dashboard", end: true },
+  { to: "/bills", label: "Bills", end: false },
+];
+
+function initialFromEmail(email: string | undefined): string {
+  if (!email) return "?";
+  return email.charAt(0).toUpperCase();
+}
 
 export default function AppHeader() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: user } = useMe();
   const { data: config } = useConfig();
   const logout = useLogout();
@@ -18,51 +31,97 @@ export default function AppHeader() {
   }
 
   return (
-    <header className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-      <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between gap-6">
-        <div className="flex items-center gap-8">
+    <header
+      className={cn(
+        "sticky top-0 z-20 w-full",
+        "border-b border-hp-border",
+        "bg-background/60 backdrop-blur-xl",
+      )}
+    >
+      <div className="flex items-center justify-between px-7 py-3.5">
+        <div className="flex items-center gap-5">
           <Link
             to="/"
-            className="flex items-center hover:opacity-80"
             aria-label="HarakaPay home"
+            className="flex items-center gap-2.5 hover:opacity-90"
           >
-            <img src={logoUrl} alt="HarakaPay" className="h-9 w-9 rounded-md" />
+            <HPMark size={26} radius={7} />
+            <span className="text-[14px] font-semibold tracking-[-0.01em]">
+              HarakaPay
+            </span>
           </Link>
-          <nav className="flex items-center gap-5 text-sm">
-            <Link
-              to="/"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Dashboard
-            </Link>
-            <Link
-              to="/bills"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Bills
-            </Link>
+
+          <nav
+            className={cn(
+              "inline-flex items-center gap-0.5 rounded-[9px] p-[3px]",
+              "bg-foreground/5",
+            )}
+          >
+            {NAV_ITEMS.map((item) => {
+              const isActive = item.end
+                ? location.pathname === item.to
+                : location.pathname.startsWith(item.to);
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  className={cn(
+                    "rounded-md px-3 py-1 text-[12.5px] font-medium transition-colors",
+                    isActive
+                      ? "bg-foreground/10 text-foreground"
+                      : "text-hp-text-dim hover:text-foreground",
+                  )}
+                >
+                  {item.label}
+                </NavLink>
+              );
+            })}
           </nav>
         </div>
-        <div className="flex items-center gap-4">
+
+        <div className="flex items-center gap-3.5">
           {demoMode && (
             <span
-              className="text-xs font-medium tracking-wide uppercase rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-700 px-2.5 py-0.5"
               title={[
                 config?.demoSkipLogin && "login disabled",
                 config?.demoAllowAllApprovals && "any user can approve",
               ]
                 .filter(Boolean)
                 .join(" · ")}
+              style={{
+                color: "var(--hp-accent)",
+                background:
+                  "color-mix(in srgb, var(--hp-accent) 14%, transparent)",
+              }}
+              className="font-mono text-[10.5px] font-bold tracking-[0.6px] rounded-full px-2.5 py-0.5"
             >
-              Demo mode
+              DEMO
             </span>
           )}
-          <span className="text-sm text-muted-foreground hidden sm:inline">
-            {user?.email}
-          </span>
-          {!hideSignOut && (
+
+          <SettingsMenu />
+
+          <div
+            aria-hidden="true"
+            style={{
+              backgroundImage:
+                "linear-gradient(135deg, var(--hp-accent), color-mix(in srgb, var(--hp-accent) 50%, white))",
+            }}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold text-[#0c0c0e]"
+          >
+            {initialFromEmail(user?.email)}
+          </div>
+
+          {user?.email && (
+            <span className="hidden text-[12px] text-hp-text-dim sm:inline">
+              {user.email}
+            </span>
+          )}
+
+          {!hideSignOut && user && (
             <Button
-              variant="secondary"
+              variant="ghost"
               size="sm"
               onClick={onLogout}
               disabled={logout.isPending}
