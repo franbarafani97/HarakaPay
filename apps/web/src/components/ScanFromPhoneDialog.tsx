@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import type { ExtractedFields, ScanSessionEvent } from "@harakapay/shared";
 import { api, apiBaseURL } from "../lib/api";
+import { useConfig } from "../hooks/useConfig";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,8 @@ export function ScanFromPhoneDialog({
   onResult: (extracted: ExtractedFields) => void;
 }) {
   const [state, setState] = useState<ScanState>({ status: "idle" });
+  const { data: config } = useConfig();
+  const demoMode = !!config?.demoSkipLogin || !!config?.demoAllowAllApprovals;
 
   useEffect(() => {
     if (!open) {
@@ -122,6 +125,22 @@ export function ScanFromPhoneDialog({
             <p className="text-xs text-muted-foreground break-all">
               Or open: <span className="font-mono">{state.scanUrl}</span>
             </p>
+            {demoMode && (
+              <div
+                role="status"
+                style={{
+                  color: "var(--hp-accent)",
+                  background:
+                    "color-mix(in srgb, var(--hp-accent) 12%, transparent)",
+                  borderColor:
+                    "color-mix(in srgb, var(--hp-accent) 35%, transparent)",
+                }}
+                className="mx-auto max-w-xs rounded-lg border px-3 py-2 text-[11.5px] font-medium leading-snug"
+              >
+                Demo mode: the returned fields are mocked. Any photo will
+                produce sample invoice data — OCR is skipped.
+              </div>
+            )}
           </div>
         )}
 

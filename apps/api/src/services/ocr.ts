@@ -25,6 +25,29 @@ export function parseInvoice(text: string): ExtractedFields {
   };
 }
 
+const DEMO_AMOUNTS_CENTS = [125000, 248050, 360000, 487525, 612000, 980000];
+
+export function mockInvoiceExtraction(): ExtractedFields {
+  const now = new Date();
+  const stamp =
+    String(now.getFullYear()).slice(-2) +
+    String(now.getMonth() + 1).padStart(2, "0") +
+    String(now.getDate()).padStart(2, "0") +
+    "-" +
+    String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+  const dueDate = new Date(now);
+  dueDate.setDate(dueDate.getDate() + 30);
+  const amountCents =
+    DEMO_AMOUNTS_CENTS[Math.floor(Math.random() * DEMO_AMOUNTS_CENTS.length)] ??
+    250000;
+  return {
+    invoiceNumber: `INV-DEMO-${stamp}`,
+    amountCents,
+    issueDate: now.toISOString(),
+    dueDate: dueDate.toISOString(),
+  };
+}
+
 function extractInvoiceNumber(text: string): string | null {
   const patterns = [
     /(?:invoice|inv)[\s.#:]*(?:no\.?|number)?[\s:#]*([A-Z0-9][A-Z0-9-]{2,})/i,

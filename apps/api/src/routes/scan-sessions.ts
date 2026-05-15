@@ -3,8 +3,9 @@ import fs from "node:fs";
 import { Router } from "express";
 import multer from "multer";
 import { ApiError } from "../lib/api-error";
+import { isDemoAllowAllApprovals, isDemoSkipLogin } from "../lib/demo-mode";
 import { requireAuth } from "../middleware/auth";
-import { parseInvoice, runOcr } from "../services/ocr";
+import { mockInvoiceExtraction, parseInvoice, runOcr } from "../services/ocr";
 import {
   createSession,
   getSession,
@@ -12,6 +13,8 @@ import {
   subscribe,
   updateSession,
 } from "../services/scan-sessions";
+
+const DEMO_MOCK_DELAY_MS = 600;
 
 const SCAN_UPLOADS_PATH = path.resolve(process.cwd(), "uploads", "scans");
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -130,10 +133,18 @@ scanSessionsRouter.post(
 
     res.json({ ok: true });
 
+    const demoMode = isDemoSkipLogin() || isDemoAllowAllApprovals();
+
     void (async () => {
       try {
-        const text = await runOcr(filePath);
-        const result = parseInvoice(text);
+        let result;
+        if (demoMode) {
+          await new Promise((r) => setTimeout(r, DEMO_MOCK_DELAY_MS));
+          result = mockInvoiceExtraction();
+        } else {
+          const text = await runOcr(filePath);
+          result = parseInvoice(text);
+        }
         updateSession(sessionId, { status: "processed", result });
         publish(sessionId, { status: "processed", result });
       } catch (e) {
